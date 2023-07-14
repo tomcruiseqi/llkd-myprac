@@ -38,10 +38,11 @@ else
   KDIR ?= /lib/modules/$(shell uname -r)/build
 endif
 
+FNAME_C := prcs_showall
+
 
 PWD            := $(shell pwd)
-obj-m          += core_lkm.o
-obj-m          += user_lkm.o
+obj-m          += ${FNAME_C}.o
 EXTRA_CFLAGS   += -DDEBUG
 
 all:

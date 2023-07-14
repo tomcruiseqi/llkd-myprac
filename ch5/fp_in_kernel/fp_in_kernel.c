@@ -1,4 +1,3 @@
-
 // SPDX-License-Identifier: GPL-3.0
 //
 // <description...>
@@ -20,45 +19,45 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+
 #define pr_fmt(fmt) "%s:%s(): " fmt, KBUILD_MODNAME, __func__
 
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <asm/fpu/api.h>
 
-#define MODNAME     "user_lkm"
-#if 1
+
+MODULE_AUTHOR("qizengtian");
+MODULE_DESCRIPTION("LLKD:ch5/fp_in_lkm: no performing FP "
+                   "(floating point) arithmetic in kernel mode");
 MODULE_LICENSE("GPL");
-#else
-MODULE_LICENSE("MIT");
+MODULE_VERSION("0.1");
+
+static double num = 22.0, den = 7.0, mypi;
+
+static int __init fp_in_lkm_init(void)
+{
+    pr_info("%s: inserted\n");
+
+    kernel_fpu_begin();
+    mypi = num / den;
+    kernel_fpu_end();
+#if 1
+    pr_info("PI = %.4f = %.4f\n", mypi, num / den);
 #endif
 
-extern void llkd_sysinfo2(void);
-
-extern long get_skey(int);
-
-extern int exp_int;
-
-/* Call some functions within the 'core' module */
-static int __init
-
-user_lkm_init(void) {
-#define THE_ONE   0xfedface
-    pr_info("inserted\n");
-    u64 sk = get_skey(THE_ONE);
-
-    pr_debug("Called get_skey(), ret = 0x%llx = %llu\n", sk, sk);
-    pr_debug("exp_int = %d\n", exp_int);
-    llkd_sysinfo2();
-
-    return 0;
+    return 0;		/* success */
 }
 
-static void __exit
+static void __exit fp_in_lkm_exit(void)
+{
+    kernel_fpu_begin();
+    pr_info("mypi = %f\n", mypi);
+    kernel_fpu_end();
 
-user_lkm_exit(void) {
-    pr_info("bids you adieu\n");
+    pr_info("removed\n");
 }
 
-module_init(user_lkm_init);
-module_exit(user_lkm_exit);
+module_init(fp_in_lkm_init);
+module_exit(fp_in_lkm_exit);

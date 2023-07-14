@@ -23,26 +23,27 @@
 #  make ARCH=<arch> CROSS_COMPILE=<cross-compiler-prefix>
 ifeq ($(ARCH),arm)
   # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree on your box
-  KDIR ?= $(HOME)/Documents/02-source/31-raspberry-linux
+  KDIR ?= $(HOME)/documents/02-source/66-raspberry-linux
 else ifeq ($(ARCH),arm64)
   # *UPDATE* 'KDIR' below to point to the ARM64 (Aarch64) Linux kernel source
   # tree on your box
-  KDIR ?= $(HOME)/Documents/02-source/28-linux-6.1.1-aarch64
+  KDIR ?= $(HOME)/documents/02-source/64-linux-5.4.234-aarch64/linux-5.4.234-aach64
 else ifeq ($(ARCH),powerpc)
   # *UPDATE* 'KDIR' below to point to the PPC64 Linux kernel source tree on your box
-  KDIR ?= $(HOME)/Documents/02-source/27-linux-5.4.234
+  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
 else
   # 'KDIR' is the Linux 'kernel headers' package on your host system; this is
   # usually an x86_64, but could be anything, really (f.e. building directly
   # on a Raspberry Pi implies that it's the host)
-  KDIR ?= /lib/modules/$(shell uname -r)/build
+  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
 endif
 
+FNAME_C := ch8_myprac
 
-PWD            := $(shell pwd)
-obj-m          += core_lkm.o
-obj-m          += user_lkm.o
-EXTRA_CFLAGS   += -DDEBUG
+PWD										:= $(shell pwd)
+obj-m									+= ${FNAME_C}.o
+$(FNAME_C)-objs				:= myprac_lkm.o klib_llkd.o
+EXTRA_CFLAGS					+= -DDEBUG
 
 all:
 	@echo
@@ -108,7 +109,7 @@ sa_sparse:
 	@echo "--- static analysis with sparse ---"
 	@echo
 # if you feel it's too much, use C=1 instead
-	make C=2 CHECK="/usr/bin/sparse" -C $(KDIR) M=$(PWD) modules
+	make C=2 CHECK="/home/qizengtian/qztusr/bin/sparse" -C $(KDIR) M=$(PWD) modules
 
 # static analysis with gcc
 sa_gcc:

@@ -1,22 +1,24 @@
-# *******************************************************************************
-#     Compile modules for testing module stacking.
+# SPDX-License-Identifier: GPL-3.0
 #
-#     Copyright (c) 2023  qizengtian <qizengtian@gmail.com>
+# Test cases for module parameters.
 #
-#     This program is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
+# Copyright (c) 2023
 #
-#     This program is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
+# Written by qizengtian <qizengtian@gmail.com>
 #
-#     You should have received a copy of the GNU General Public License
-#     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-# ******************************************************************************/
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 
 # To support cross-compiling for kernel modules:
 # For architecture (cpu) 'arch', invoke make as:
@@ -35,13 +37,14 @@ else
   # 'KDIR' is the Linux 'kernel headers' package on your host system; this is
   # usually an x86_64, but could be anything, really (f.e. building directly
   # on a Raspberry Pi implies that it's the host)
-  KDIR ?= /lib/modules/$(shell uname -r)/build
+  KDIR ?= $(HOME)/Documents/02-source/27-linux-5.4.234
 endif
 
+# Set FNAME_C to the kernel module name source filename (without .c)
+FNAME_C := fp_in_kernel
 
 PWD            := $(shell pwd)
-obj-m          += core_lkm.o
-obj-m          += user_lkm.o
+obj-m          += ${FNAME_C}.o
 EXTRA_CFLAGS   += -DDEBUG
 
 all:

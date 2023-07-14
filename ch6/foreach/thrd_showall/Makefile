@@ -35,13 +35,14 @@ else
   # 'KDIR' is the Linux 'kernel headers' package on your host system; this is
   # usually an x86_64, but could be anything, really (f.e. building directly
   # on a Raspberry Pi implies that it's the host)
-  KDIR ?= /lib/modules/$(shell uname -r)/build
+  KDIR ?= $(HOME)/Documents/02-source/27-linux-5.4.234
 endif
+
+FNAME_C := thrd_showall
 
 
 PWD            := $(shell pwd)
-obj-m          += core_lkm.o
-obj-m          += user_lkm.o
+obj-m          += ${FNAME_C}.o
 EXTRA_CFLAGS   += -DDEBUG
 
 all:
@@ -108,7 +109,7 @@ sa_sparse:
 	@echo "--- static analysis with sparse ---"
 	@echo
 # if you feel it's too much, use C=1 instead
-	make C=2 CHECK="/usr/bin/sparse" -C $(KDIR) M=$(PWD) modules
+	make C=2 CHECK="/home/qizengtian/qztusr/bin/sparse" -C $(KDIR) M=$(PWD) modules
 
 # static analysis with gcc
 sa_gcc:
