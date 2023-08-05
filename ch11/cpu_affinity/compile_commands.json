@@ -1,0 +1,32 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-Wall",
+      "-Os",
+      "-o",
+      "userspc_cpuaffinity",
+      "userspc_cpuaffinity.c"
+    ],
+    "directory": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity",
+    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity/userspc_cpuaffinity.c",
+    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity/userspc_cpuaffinity"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-g",
+      "-ggdb",
+      "-Wall",
+      "-O0",
+      "-o",
+      "userspc_cpuaffinity_dbg",
+      "userspc_cpuaffinity.c"
+    ],
+    "directory": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity",
+    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity/userspc_cpuaffinity.c",
+    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch11/cpu_affinity/userspc_cpuaffinity_dbg"
+  }
+]

@@ -1,0 +1,14 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-c",
+      "-o",
+      "crazy",
+      "./crazy_process.c"
+    ],
+    "directory": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch9/oom_killer_try",
+    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch9/oom_killer_try/crazy_process.c",
+    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch9/oom_killer_try/crazy"
+  }
+]
