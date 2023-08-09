@@ -17,10 +17,15 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
-#define pr_fmt(fmt) "%s:%s(): " fmt, KBUILD_MODNAME, __func__ 
+#define pr_fmt(fmt) "%s:%s(): " fmt, KBUILD_MODNAME, __func__
+
+#include <asm-generic/errno-base.h>
+#include <linux/elf-em.h>
+#include <linux/string.h>
+#include <linux/uaccess.h>
 
 #include "../../convenient.h"
-#include "linux/limits.h"
+#include <linux/limits.h>
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/miscdevice.h>
@@ -48,8 +53,30 @@ static int open_mymiscdev(struct inode *inode, struct file *filp) {
 
 static ssize_t read_mymiscdev(struct file *filp, char __user *ubuf,
                               size_t count, loff_t *off) {
-    pr_info("to read %zd bytes\n", count);
-    return count;
+    size_t bytes_to_read, dev_buf_length = 1024;
+    char *dev_buf;
+    dev_buf = kzalloc(dev_buf_length, GFP_KERNEL);
+    if (unlikely(!dev_buf))
+        return -ENOMEM;
+
+    strncpy(dev_buf, "This is my fake misc device data.", dev_buf_length - 1);
+    bytes_to_read = strnlen(dev_buf, dev_buf_length);
+
+    if (count < bytes_to_read)
+        bytes_to_read = count;
+
+    if (copy_to_user(ubuf, dev_buf, bytes_to_read)) {
+        pr_err("failed to copy data from my misc device to userspace.\n");
+        goto err;
+    }
+
+    pr_info("to read %zd bytes\n", bytes_to_read);
+    kfree(dev_buf);
+    return bytes_to_read;
+
+err:
+    kfree(dev_buf);
+    return -EIO;
 }
 
 static ssize_t write_mymiscdev(struct file *filp, const char __user *ubuf,
@@ -69,8 +96,11 @@ static int close_mymiscdev(struct inode *inode, struct file *filp) {
 }
 
 static const struct file_operations mymiscdev_fops = {
-    .open = open_mymiscdev, .read = read_mymiscdev, .write = write_mymiscdev,
-    .release = close_mymiscdev, .llseek = no_llseek,
+    .open = open_mymiscdev,
+    .read = read_mymiscdev,
+    .write = write_mymiscdev,
+    .release = close_mymiscdev,
+    .llseek = no_llseek,
 };
 
 /* First, I need to create the device structure.
@@ -95,7 +125,8 @@ static int __init mymiscdev_init(void) {
 
     dev = mymiscdev.this_device;
     pr_info("mymiscdev driver (major # 10) registered, minor# = %d"
-            " dev node is /dev/%s\n", mymiscdev.minor, mymiscdev.name);
+            " dev node is /dev/%s\n",
+            mymiscdev.minor, mymiscdev.name);
     dev_info(dev, "sample dev_info(): minor# = %d\n", mymiscdev.minor);
 
     return 0;
