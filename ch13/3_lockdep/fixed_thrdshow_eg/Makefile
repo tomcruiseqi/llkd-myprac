@@ -1,49 +1,55 @@
-# *******************************************************************************
-#     Compile modules for testing module stacking.
+# ch5/lkm_template/Makefile
+# ***************************************************************
+# This program is part of the source code released for the book
+#  "Linux Kernel Programming"
+#  (c) Author: Kaiwan N Billimoria
+#  Publisher:  Packt
+#  GitHub repository:
+#  https://github.com/PacktPublishing/Linux-Kernel-Programming
 #
-#     Copyright (c) 2023  qizengtian <qizengtian@gmail.com>
+# From: Ch 5 : Writing Your First Kernel Module LKMs, Part 2
+# ***************************************************************
+# Brief Description:
+# A 'better' Makefile template for Linux LKMs (Loadable Kernel Modules); besides
+# the 'usual' targets (the build, install and clean), we incorporate targets to
+# do useful (and indeed required) stuff like:
+#  - adhering to kernel coding style (indent+checkpatch)
+#  - several static analysis targets (via sparse, gcc, flawfinder, cppcheck)
+#  - two 'dummy' dynamic analysis targets (KASAN, LOCKDEP)
+#  - a packaging (.tar.xz) target and
+#  - a help target.
 #
-#     This program is free software: you can redistribute it and/or modify
-#     it under the terms of the GNU General Public License as published by
-#     the Free Software Foundation, either version 3 of the License, or
-#     (at your option) any later version.
+# To get started, just type:
+#  make help
 #
-#     This program is distributed in the hope that it will be useful,
-#     but WITHOUT ANY WARRANTY; without even the implied warranty of
-#     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#     GNU General Public License for more details.
-#
-#     You should have received a copy of the GNU General Public License
-#     along with this program.  If not, see <https://www.gnu.org/licenses/>.
-# ******************************************************************************/
-#
+# For details, please refer the book, Ch 5.
 
 # To support cross-compiling for kernel modules:
 # For architecture (cpu) 'arch', invoke make as:
 #  make ARCH=<arch> CROSS_COMPILE=<cross-compiler-prefix>
 ifeq ($(ARCH),arm)
   # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree on your box
-  KDIR ?= $(HOME)/documents/02-source/66-raspberry-linux
+  KDIR ?= ~/rpi_work/kernel_rpi/linux
 else ifeq ($(ARCH),arm64)
   # *UPDATE* 'KDIR' below to point to the ARM64 (Aarch64) Linux kernel source
   # tree on your box
-  KDIR ?= $(HOME)/documents/02-source/64-linux-5.4.234-aarch64/linux-5.4.234-aach64
+  KDIR ?= ~/kernel/linux-4.14
 else ifeq ($(ARCH),powerpc)
   # *UPDATE* 'KDIR' below to point to the PPC64 Linux kernel source tree on your box
-  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
+  KDIR ?= ~/kernel/linux-4.9.1
 else
   # 'KDIR' is the Linux 'kernel headers' package on your host system; this is
   # usually an x86_64, but could be anything, really (f.e. building directly
   # on a Raspberry Pi implies that it's the host)
-  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
+  KDIR ?= /lib/modules/$(shell uname -r)/build
 endif
 
-FNAME_C := thrd_showall_lkm
+# Set FNAME_C to the kernel module name source filename (without .c)
+FNAME_C := thrd_showall_fixed
 
-PWD										:= $(shell pwd)
-obj-m									+= ${FNAME_C}.o
-$(FNAME_C)-objs				:= thrd_showall.o
-EXTRA_CFLAGS					+= -DDEBUG
+PWD            := $(shell pwd)
+obj-m          += ${FNAME_C}.o
+EXTRA_CFLAGS   += -DDEBUG
 
 all:
 	@echo
@@ -109,7 +115,7 @@ sa_sparse:
 	@echo "--- static analysis with sparse ---"
 	@echo
 # if you feel it's too much, use C=1 instead
-	make C=2 CHECK="/home/qizengtian/qztusr/bin/sparse" -C $(KDIR) M=$(PWD) modules
+	make C=2 CHECK="/usr/bin/sparse" -C $(KDIR) M=$(PWD) modules
 
 # static analysis with gcc
 sa_gcc:

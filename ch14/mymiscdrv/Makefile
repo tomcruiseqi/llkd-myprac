@@ -38,11 +38,11 @@ else
   KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
 endif
 
-FNAME_C := thrd_showall_lkm
+FNAME_C := mymidscdrv_lkm
 
 PWD										:= $(shell pwd)
 obj-m									+= ${FNAME_C}.o
-$(FNAME_C)-objs				:= thrd_showall.o
+$(FNAME_C)-objs				:= mymiscdrv.o
 EXTRA_CFLAGS					+= -DDEBUG
 
 all:

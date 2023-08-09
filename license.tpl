@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0
 //
 // Brief Description:
-// This my place to figure out some of my questions.
+//
 //
 // Copyright (c) 2023
 //

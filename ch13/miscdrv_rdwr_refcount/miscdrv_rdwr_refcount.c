@@ -1,5 +1,4 @@
-   53 } 
- * ch12/1_miscdrv_rdwr_mutexlock/miscdrv_rdwr_mutexlock.c
+/* * ch12/2_miscdrv_rdwr_spinlock/miscdrv_rdwr_spinlock.c
  ***************************************************************
  * This program is part of the source code released for the book
  *  "Linux Kernel Programming"
@@ -11,13 +10,11 @@
  * From: Ch 12 : Kernel Synchronization - Part 1
  ****************************************************************
  * Brief Description:
- * This driver is built upon our previous ch12/miscdrv_rdwr/ misc driver.
- * The really important and key difference: previously, we used a few global data
- * items throughout *without* protection; this time, we fix this egregious error
- * by using a mutex lock to protect the critical sections - the places in the
- * code where we access global / shared writeable data.
- * The functionality (the get and set of the 'secret') remains identical to the
- * original implementation.
+ * This driver is built upon our previous ch12/1_miscdrv_rdwr_mutexlock/
+ * misc driver.
+ * The key difference: we use spinlocks in place of the mutex locks (this isn't
+ * the case everywhere in the driver though; we keep the mutex as well for some
+ * portions of the driver).
  *
  * For details, please refer the book, Ch 12.
  */
@@ -29,8 +26,9 @@
 #include <linux/slab.h> // k[m|z]alloc(), k[z]free(), ...
 #include <linux/mm.h> // kvmalloc()
 #include <linux/fs.h> // the fops structure
+#include <linux/refcount.h>
 
-// copy_[to|from]_user()
+   // copy_[to|from]_user()
 #include <linux/version.h>
 #if LINUX_VERSION_CODE > KERNEL_VERSION(4, 11, 0)
 #include <linux/uaccess.h>
@@ -38,38 +36,54 @@
 #include <asm/uaccess.h>
 #endif
 
-#include <linux/mutex.h> // mutex lock, unlock, etc
+#include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include "../../convenient.h"
 
-#define OURMODNAME "miscdrv_rdwr_mutexlock"
+#define OURMODNAME "miscdrv_rdwr_spinlock"
 
 MODULE_AUTHOR("Kaiwan N Billimoria");
-MODULE_DESCRIPTION(
-	"LKP book:ch12/1_miscdrv_rdwr_mutexlock: simple misc char driver rewritten with mutex locking");
-MODULE_LICENSE("Dual MIT/GPL");
-MODULE_VERSION("0.1");
+ MODULE_DESCRIPTION(
+	 "LKP book:ch12/2_miscdrv_rdwr_spinlock: simple misc char driver rewritten with spinlocks");
+ MODULE_LICENSE("Dual MIT/GPL");
+ MODULE_VERSION("0.1");
 
-static int ga, gb = 1;
-DEFINE_MUTEX(
-	lock1); // this mutex lock is meant to protect the integers ga and gb
+ static int buggy;
+ module_param(buggy, int, 0600);
+ MODULE_PARM_DESC(
+	 buggy,
+	 "If 1, cause an error by issuing a blocking call within a spinlock critical section");
 
-/*
- * The driver 'context' (or private) data structure;
- * all relevant 'state info' regarding the driver is here.
+ static refcount_t grefa = REFCOUNT_INIT(1), grefb = REFCOUNT_INIT(1);
+
+ /* The driver 'context' data structure;
+ * all relevant 'state info' reg the driver is here.
  */
-struct drv_ctx {
+ struct drv_ctx {
 	struct device *dev;
 	int tx, rx, err, myword;
 	u32 config1, config2;
 	u64 config3;
 #define MAXBYTES 128
 	char oursecret[MAXBYTES];
-	struct mutex lock; // this mutex protects this data structure
-};
-static struct drv_ctx *ctx;
+	struct mutex mutex; // this mutex protects this data structure
+	spinlock_t spinlock; // ...so does this spinlock
+ };
+ static struct drv_ctx *ctx;
 
-/*--- The driver 'methods' follow ---*/
-/*
+ static inline void display_stats(int show_stats)
+ {
+	struct device *dev = ctx->dev;
+
+	if (1 == show_stats) {
+		spin_lock(&ctx->spinlock);
+		dev_info(dev, "stats: tx=%d, rx=%d\n", ctx->tx, ctx->rx);
+		spin_unlock(&ctx->spinlock);
+	}
+ }
+
+ /*--- The driver 'methods' follow ---*/
+ /*
  * open_miscdrv_rdwr()
  * The driver's open 'method'; this 'hook' will get invoked by the kernel VFS
  * when the device file is opened. Here, we simply print out some relevant info.
@@ -77,27 +91,27 @@ static struct drv_ctx *ctx;
  * note, though, that this is done within the kernel VFS (when we return). So,
  * all we do here is return 0 indicating success.
  */
-static int open_miscdrv_rdwr(struct inode *inode, struct file *filp)
-{
+ static int open_miscdrv_rdwr(struct inode *inode, struct file *filp)
+ {
 	struct device *dev = ctx->dev;
 
 	PRINT_CTX(); // displays process (or intr) context info
 
-	mutex_lock(&lock1);
-	ga++;
-	gb--;
-	mutex_unlock(&lock1);
+	refcount_inc(&grefa);
+	refcount_dec(&grefb);
 
 	dev_info(dev,
 		 " filename: \"%s\"\n"
 		 " wrt open file: f_flags = 0x%x\n"
-		 " ga = %d, gb = %d\n",
-		 filp->f_path.dentry->d_iname, filp->f_flags, ga, gb);
+		 " grefa = %d, grefb = %d\n",
+		 filp->f_path.dentry->d_iname, filp->f_flags,
+		 refcount_read(&grefa), refcount_read(&grefb));
 
+	display_stats(1);
 	return 0;
-}
+ }
 
-/*
+ /*
  * read_miscdrv_rdwr()
  * The driver's read 'method'; it has effectively 'taken over' the read syscall
  * functionality!
@@ -106,15 +120,15 @@ static int open_miscdrv_rdwr(struct inode *inode, struct file *filp)
  * on failure; here, we copy the 'secret' from our driver context structure
  * to the userspace app.
  */
-static ssize_t read_miscdrv_rdwr(struct file *filp, char __user *ubuf,
-				 size_t count, loff_t *off)
-{
-	int ret = count, secret_len;
+ static ssize_t read_miscdrv_rdwr(struct file *filp, char __user *ubuf,
+				  size_t count, loff_t *off)
+ {
+	int ret = count, secret_len, err_path = 0;
 	struct device *dev = ctx->dev;
 
-	mutex_lock(&ctx->lock);
+	spin_lock(&ctx->spinlock);
 	secret_len = strlen(ctx->oursecret);
-	mutex_unlock(&ctx->lock);
+	spin_unlock(&ctx->spinlock);
 
 	PRINT_CTX();
 	dev_info(dev, "%s wants to read (upto) %zu bytes\n", current->comm,
@@ -126,11 +140,13 @@ static ssize_t read_miscdrv_rdwr(struct file *filp, char __user *ubuf,
 			 "request # of bytes (%zu) is < required size"
 			 " (%d), aborting read\n",
 			 count, MAXBYTES);
+		err_path = 1;
 		goto out_notok;
 	}
 	if (secret_len <= 0) {
 		dev_warn(dev, "whoops, something's wrong, the 'secret' isn't"
 			      " available..; aborting read\n");
+		err_path = 1;
 		goto out_notok;
 	}
 
@@ -146,9 +162,16 @@ static ssize_t read_miscdrv_rdwr(struct file *filp, char __user *ubuf,
 	 * member to userspace.
 	 */
 	ret = -EFAULT;
-	mutex_lock(&ctx->lock);
+	mutex_lock(&ctx->mutex);
+	/* Why don't we just use the spinlock??
+	 * Because - VERY IMP! - remember that the spinlock can only be used when
+	 * the critical section will not sleep or block in any manner; here,
+	 * the critical section invokes the copy_to_user(); it very much can
+	 * cause a 'sleep' (a schedule()) to occur.
+	 */
 	if (copy_to_user(ubuf, ctx->oursecret, secret_len)) {
 		dev_warn(dev, "copy_to_user() failed\n");
+		err_path = 1;
 		goto out_ctu;
 	}
 	ret = secret_len;
@@ -158,12 +181,13 @@ static ssize_t read_miscdrv_rdwr(struct file *filp, char __user *ubuf,
 	dev_info(dev, " %d bytes read, returning... (stats: tx=%d, rx=%d)\n",
 		 secret_len, ctx->tx, ctx->rx);
 out_ctu:
-	mutex_unlock(&ctx->lock);
+	mutex_unlock(&ctx->mutex);
+	display_stats(err_path);
 out_notok:
 	return ret;
-}
+ }
 
-/*
+ /*
  * write_miscdrv_rdwr()
  * The driver's write 'method'; it has effectively 'taken over' the write syscall
  * functionality!
@@ -172,10 +196,10 @@ out_notok:
  * on failure; Here, we accept the string passed to us and update our 'secret'
  * value to it.
  */
-static ssize_t write_miscdrv_rdwr(struct file *filp, const char __user *ubuf,
-				  size_t count, loff_t *off)
-{
-	int ret;
+ static ssize_t write_miscdrv_rdwr(struct file *filp, const char __user *ubuf,
+				   size_t count, loff_t *off)
+ {
+	int ret, err_path = 0;
 	void *kbuf = NULL;
 	struct device *dev = ctx->dev;
 
@@ -186,6 +210,7 @@ static ssize_t write_miscdrv_rdwr(struct file *filp, const char __user *ubuf,
 	kbuf = kvmalloc(count, GFP_KERNEL);
 	if (unlikely(!kbuf)) {
 		dev_warn(dev, "kvmalloc() failed!\n");
+		err_path = 1;
 		goto out_nomem;
 	}
 	memset(kbuf, 0, count);
@@ -193,26 +218,28 @@ static ssize_t write_miscdrv_rdwr(struct file *filp, const char __user *ubuf,
 	/* Copy in the user supplied buffer 'ubuf' - the data content to write -
 	 * via the copy_from_user() macro.
 	 * (FYI, the copy_from_user() macro is the *right* way to copy data from
-	 * userspace to kernel-space; the parameters are:
+	 * kernel-space to userspace; the parameters are:
 	 *  'to-buffer', 'from-buffer', count
 	 *  Returns 0 on success, i.e., non-zero return implies an I/O fault).
 	 */
 	ret = -EFAULT;
 	if (copy_from_user(kbuf, ubuf, count)) {
 		dev_warn(dev, "copy_from_user() failed\n");
+		err_path = 1;
 		goto out_cfu;
 	}
 
 	/* In a 'real' driver, we would now actually write (for 'count' bytes)
 	 * the content of the 'ubuf' buffer to the device hardware (or whatever),
 	 * and then return.
-	 * Here, we first acquire the mutex lock, then write the just-accepted
+	 * Here, we first acquire the spinlock, then write the just-accepted
 	 * new 'secret' into our driver 'context' structure, and unlock.
 	 */
-	mutex_lock(&ctx->lock);
+	spin_lock(&ctx->spinlock);
 	strscpy(ctx->oursecret, kbuf, (count > MAXBYTES ? MAXBYTES : count));
 #if 0
-	print_hex_dump_bytes("ctx ", DUMP_PREFIX_OFFSET, ctx, sizeof(struct drv_ctx));
+	print_hex_dump_bytes("ctx ", DUMP_PREFIX_OFFSET,
+				ctx, sizeof(struct drv_ctx));
 #endif
 	// Update stats
 	ctx->rx += count; // our 'receive' is wrt userspace
@@ -221,45 +248,53 @@ static ssize_t write_miscdrv_rdwr(struct file *filp, const char __user *ubuf,
 	dev_info(dev,
 		 " %zu bytes written, returning... (stats: tx=%d, rx=%d)\n",
 		 count, ctx->tx, ctx->rx);
-	mutex_unlock(&ctx->lock);
 
+	if (1 == buggy) {
+		/* We're still holding the spinlock! */
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(1 * HZ); /* ... and this is a blocking call!
+							* Congratulations! you've just engineered a bug */
+	}
+
+	spin_unlock(&ctx->spinlock);
 out_cfu:
 	kvfree(kbuf);
+	display_stats(err_path);
 out_nomem:
 	return ret;
-}
+ }
 
-/*
+ /*
  * close_miscdrv_rdwr()
  * The driver's close 'method'; this 'hook' will get invoked by the kernel VFS
  * when the device file is closed (technically, when the file ref count drops
  * to 0). Here, we simply print out some info, and return 0 indicating success.
  */
-static int close_miscdrv_rdwr(struct inode *inode, struct file *filp)
-{
+ static int close_miscdrv_rdwr(struct inode *inode, struct file *filp)
+ {
 	struct device *dev = ctx->dev;
 
 	PRINT_CTX(); // displays process (or intr) context info
 
-	mutex_lock(&lock1);
-	ga--;
-	gb++;
-	mutex_unlock(&lock1);
+	refcount_dec(&grefa);
+	refcount_inc(&grefb);
 
-	dev_info(dev, "filename: \"%s\"\n ga = %d, gb = %d\n",
-		 filp->f_path.dentry->d_iname, ga, gb);
+	dev_info(dev, "filename: \"%s\"\n grefa = %d, grefb = %d\n",
+		 filp->f_path.dentry->d_iname, refcount_read(&grefa),
+		 refcount_read(&grefb));
+	display_stats(1);
 
 	return 0;
-}
+ }
 
-/* The driver 'functionality' is encoded via the fops */
-static const struct file_operations llkd_misc_fops = {
-	.open = open_miscdrv_rdwr,
-	.read = read_miscdrv_rdwr,
-	.write = write_miscdrv_rdwr,
-	.llseek = no_llseek, // dummy, we don't support lseek(2)
-	.release = close_miscdrv_rdwr,
-	/* As you learn more reg device drivers (refer this book's companion guide
+ /* The driver 'functionality' is encoded via the fops */
+ static const struct file_operations llkd_misc_fops = {
+	 .open = open_miscdrv_rdwr,
+	 .read = read_miscdrv_rdwr,
+	 .write = write_miscdrv_rdwr,
+	 .llseek = no_llseek, // dummy, we don't support lseek(2)
+	 .release = close_miscdrv_rdwr,
+	 /* As you learn more reg device drivers (refer this book's companion guide
 	 * 'Linux Kernel Programming (Part 2): Writing character device drivers: Learn
 	 * to work with user-kernel interfaces, handle peripheral I/O & hardware
 	 * interrupts '), you'll realize that the ioctl() would be a very useful method
@@ -267,18 +302,19 @@ static const struct file_operations llkd_misc_fops = {
 	 * 'GETSTATS' 'command', it should return the statistics (tx, rx, errors) to
 	 * the calling app.
 	 */
-};
+ };
 
-static struct miscdevice llkd_miscdev = {
-	.minor = MISC_DYNAMIC_MINOR, // kernel dynamically assigns a free minor#
-	.name = "llkd_miscdrv_rdwr_mutexlock",
-	// populated within /sys/class/misc/ and /sys/devices/virtual/misc/
-	.mode = 0666, /* ... dev node perms set as specified here */
-	.fops = &llkd_misc_fops, // connect to 'functionality'
-};
+ static struct miscdevice llkd_miscdev = {
+	 .minor =
+		 MISC_DYNAMIC_MINOR, // kernel dynamically assigns a free minor#
+	 .name = "llkd_miscdrv_rdwr_spinlock",
+	 // populated within /sys/class/misc/ and /sys/devices/virtual/misc/
+	 .mode = 0666, /* ... dev node perms set as specified here */
+	 .fops = &llkd_misc_fops, // connect to 'functionality'
+ };
 
-static int __init miscdrv_init_mutexlock(void)
-{
+ static int __init miscdrv_init_spinlock(void)
+ {
 	int ret;
 
 	ret = misc_register(&llkd_miscdev);
@@ -287,46 +323,45 @@ static int __init miscdrv_init_mutexlock(void)
 		return ret;
 	}
 	pr_info("LLKD misc driver (major # 10) registered, minor# = %d,"
-		" dev node is /dev/%s",
+		" dev node is %s\n",
 		llkd_miscdev.minor, llkd_miscdev.name);
 
 	/*
-	 * A 'managed' kzalloc(): use the 'devres' API devm_kzalloc() for mem
-	 * alloc; why? as the underlying kernel devres framework will take care of
-	 * freeing the memory automatically upon driver 'detach' or when the driver
-	 * is unloaded from memory
-	 */
+     * A 'managed' kzalloc(): use the 'devres' API devm_kzalloc() for mem
+     * alloc; why? as the underlying kernel devres framework will take care of
+     * freeing the memory automatically upon driver 'detach' or when the driver
+     * is unloaded from memory
+     */
 	ctx = kzalloc(sizeof(struct drv_ctx), GFP_KERNEL);
 	if (unlikely(!ctx))
 		return -ENOMEM;
 
-	mutex_init(&ctx->lock);
+	mutex_init(&ctx->mutex);
+	spin_lock_init(&ctx->spinlock);
 
 	/* Retrieve the device pointer for this device */
 	ctx->dev = llkd_miscdev.this_device;
 
-	/* Initialize the "secret" value :-) */
 	strscpy(ctx->oursecret, "initmsg", 8);
-	/* Why don't we protect the above strscpy() with the mutex lock?
-	 * It's working on shared writable data, yes?
-	 * Yes, BUT this is the init code; it's guaranteed to run in exactly
-	 * one context (typically the insmod(8) process), thus there is
-	 * no concurrency possible here. The same goes for the cleanup
-	 * code path.
-	 */
+	/* Why don't we protect the above strscpy() with the mutex / spinlock?
+		 * It's working on shared writable data, yes?
+		 * No; this is the init code; it's guaranteed to run in exactly
+		 * one context (typically the insmod(8) process), thus there is
+		 * no concurrency possible here. The same goes for the cleanup
+		 * code path.
+		 */
 
 	dev_dbg(ctx->dev,
 		"A sample print via the dev_dbg(): driver initialized\n");
 	return 0; /* success */
-}
+ }
 
-static void __exit miscdrv_exit_mutexlock(void)
-{
-	mutex_destroy(&lock1);
-	mutex_destroy(&ctx->lock);
+ static void __exit miscdrv_exit_spinlock(void)
+ {
+	mutex_destroy(&ctx->mutex);
 	misc_deregister(&llkd_miscdev);
 	pr_info("LLKD misc driver %s deregistered, bye\n", llkd_miscdev.name);
-}
+ }
 
-module_init(miscdrv_init_mutexlock);
-module_exit(miscdrv_exit_mutexlock);
+ module_init(miscdrv_init_spinlock);
+ module_exit(miscdrv_exit_spinlock);
