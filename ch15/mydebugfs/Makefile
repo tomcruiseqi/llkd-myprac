@@ -38,11 +38,11 @@ else
   KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
 endif
 
-FNAME_C := mynetlink_kernel_lkm
+FNAME_C := mydebugfs_demo1_lkm
 
 PWD										:= $(shell pwd)
 obj-m									+= ${FNAME_C}.o
-$(FNAME_C)-objs				:= mynetlink_kernel.o
+$(FNAME_C)-objs				:= mydebugfs_demo1.o
 EXTRA_CFLAGS					+= -DDEBUG
 
 all:

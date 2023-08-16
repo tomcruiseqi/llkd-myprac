@@ -2,7 +2,7 @@
   {
     "arguments": [
       "/usr/bin/gcc",
-      "-Wp,-MD,/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/.myplatdev_sysfs.o.d",
+      "-Wp,-MD,/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/.mydebugfs_demo1.o.d",
       "-nostdinc",
       "-isystem",
       "/usr/lib/gcc/x86_64-linux-gnu/12/include",
@@ -125,21 +125,21 @@
       "-fsanitize=enum",
       "-Wno-maybe-uninitialized",
       "-DMODULE",
-      "-DKBUILD_BASENAME=\"myplatdev_sysfs\"",
-      "-DKBUILD_MODNAME=\"myplatdev_sysfs_lkm\"",
+      "-DKBUILD_BASENAME=\"mydebugfs_demo1\"",
+      "-DKBUILD_MODNAME=\"mydebugfs_demo1_lkm\"",
       "-c",
       "-o",
-      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs.o",
-      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs.c"
+      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1.o",
+      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1.c"
     ],
     "directory": "/home/qizengtian/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64",
-    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs.c",
-    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs.o"
+    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1.c",
+    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1.o"
   },
   {
     "arguments": [
       "/usr/bin/gcc",
-      "-Wp,-MD,/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/.myplatdev_sysfs_lkm.mod.o.d",
+      "-Wp,-MD,/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/.mydebugfs_demo1_lkm.mod.o.d",
       "-nostdinc",
       "-isystem",
       "/usr/lib/gcc/x86_64-linux-gnu/12/include",
@@ -242,15 +242,15 @@
       "-fmacro-prefix-map=./=",
       "-Wno-packed-not-aligned",
       "-DMODULE",
-      "-DKBUILD_BASENAME=\"myplatdev_sysfs_lkm.mod\"",
-      "-DKBUILD_MODNAME=\"myplatdev_sysfs_lkm\"",
+      "-DKBUILD_BASENAME=\"mydebugfs_demo1_lkm.mod\"",
+      "-DKBUILD_MODNAME=\"mydebugfs_demo1_lkm\"",
       "-c",
       "-o",
-      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs_lkm.mod.o",
-      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs_lkm.mod.c"
+      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1_lkm.mod.o",
+      "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1_lkm.mod.c"
     ],
     "directory": "/home/qizengtian/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64",
-    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs_lkm.mod.c",
-    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/myplatdev_sysfs/myplatdev_sysfs_lkm.mod.o"
+    "file": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1_lkm.mod.c",
+    "output": "/home/qizengtian/documents/02-source/61-llkd-myprac/ch15/mydebugfs/mydebugfs_demo1_lkm.mod.o"
   }
 ]
