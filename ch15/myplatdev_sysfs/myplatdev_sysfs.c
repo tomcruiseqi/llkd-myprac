@@ -36,13 +36,13 @@ MODULE_DESCRIPTION("This is my platform device with sysfs support practice.");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
 
-struct mymiscdev_ctx {
+struct myplatform_dev_ctx {
     int debug_level;
 #define DESC_MAX_LEN 128
     char desc[128];
 };
-static struct mymiscdev_ctx *gmydev_ctx;
-DEFINE_MUTEX(g_mymiscdev_ctx_lock);
+static struct myplatform_dev_ctx *gmyplatform_dev_ctx;
+DEFINE_MUTEX(g_myplatform_dev_ctx_lock);
 
 /* Add support for sysfs. */
 #define SYSFS_PLATFORM_DEV "my_platform_dev"
@@ -57,8 +57,8 @@ static ssize_t my_platform_debug_level_show(struct device *dev,
     if (mutex_lock_interruptible(&g_sysfs_debug_level))
         return -ERESTARTSYS;
     dev_info(dev, "read attribute:[%s].\n", attr->attr.name);
-    bytes_read = snprintf(buf, sizeof(gmydev_ctx->debug_level), "%d\n",
-                          gmydev_ctx->debug_level);
+    bytes_read = snprintf(buf, sizeof(gmyplatform_dev_ctx->debug_level), "%d\n",
+                          gmyplatform_dev_ctx->debug_level);
     mutex_unlock(&g_sysfs_debug_level);
     return bytes_read;
 }
@@ -76,7 +76,7 @@ static ssize_t my_platform_debug_level_store(struct device *dev,
         ret = -EIO;
         goto out;
     }
-    gmydev_ctx->debug_level = user_debug_level;
+    gmyplatform_dev_ctx->debug_level = user_debug_level;
     ret = count;
 out:
     mutex_unlock(&g_sysfs_debug_level);
@@ -85,7 +85,7 @@ out:
 
 static DEVICE_ATTR_RW(SYSFS_MYMISC_ATTR_DEBUG_LEVEL);
 
-static int __init mydev_init(void) {
+static int __init myplatform_dev_init(void) {
     int ret = 0;
 
     /* Create simple platform device. */
@@ -98,15 +98,15 @@ static int __init mydev_init(void) {
     }
 
     /* Create the device config context structure. */
-    gmydev_ctx = devm_kzalloc(&gmyplatdev->dev, sizeof(struct mymiscdev_ctx),
+    gmyplatform_dev_ctx = devm_kzalloc(&gmyplatdev->dev, sizeof(struct myplatform_dev_ctx),
                               GFP_KERNEL);
-    if (unlikely(!gmydev_ctx)) {
+    if (unlikely(!gmyplatform_dev_ctx)) {
         goto unregister_device;
         ret = -ENOMEM;
     }
 
-    strscpy(gmydev_ctx->desc, "hello world.", DESC_MAX_LEN);
-    gmydev_ctx->debug_level = 1;
+    strscpy(gmyplatform_dev_ctx->desc, "hello world.", DESC_MAX_LEN);
+    gmyplatform_dev_ctx->debug_level = 1;
 
     /* Create sysfs files. */
     if (device_create_file(&gmyplatdev->dev,
@@ -119,23 +119,23 @@ static int __init mydev_init(void) {
 
     return 0;
 delete_ctx:
-    devm_kfree(&gmyplatdev->dev, gmydev_ctx);
+    devm_kfree(&gmyplatdev->dev, gmyplatform_dev_ctx);
 unregister_device:
     platform_device_unregister(gmyplatdev);
 out:
     return ret;
 }
 
-static void __exit mydev_exit(void) {
+static void __exit myplatform_dev_exit(void) {
     /* Remove the sysfs device attributes. */
     device_remove_file(&gmyplatdev->dev,
                        &dev_attr_SYSFS_MYMISC_ATTR_DEBUG_LEVEL);
     /* Delete the ctx structure. */
-    devm_kfree(&gmyplatdev->dev, gmydev_ctx);
+    devm_kfree(&gmyplatdev->dev, gmyplatform_dev_ctx);
     /* Unregister the platform device. */
     platform_device_unregister(gmyplatdev);
     pr_info("removed.\n");
 }
 
-module_init(mydev_init);
-module_exit(mydev_exit);
+module_init(myplatform_dev_init);
+module_exit(myplatform_dev_exit);
