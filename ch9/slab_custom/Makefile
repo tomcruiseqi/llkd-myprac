@@ -23,19 +23,19 @@
 #  make ARCH=<arch> CROSS_COMPILE=<cross-compiler-prefix>
 ifeq ($(ARCH),arm)
   # *UPDATE* 'KDIR' below to point to the ARM Linux kernel source tree on your box
-  KDIR ?= $(HOME)/documents/02-source/66-raspberry-linux
+  KDIR ?= $(HOME)/documents/08-linux/10-raspberry
 else ifeq ($(ARCH),arm64)
   # *UPDATE* 'KDIR' below to point to the ARM64 (Aarch64) Linux kernel source
   # tree on your box
-  KDIR ?= $(HOME)/documents/02-source/64-linux-5.4.234-aarch64/linux-5.4.234-aach64
+  KDIR ?= $(HOME)/documents/08-linux/08-5.4.234-aarch64/linux-5.4.234-aarch64
 else ifeq ($(ARCH),powerpc)
   # *UPDATE* 'KDIR' below to point to the PPC64 Linux kernel source tree on your box
-  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
+  KDIR ?= $(HOME)/documents/08-linux/03-5.4.234-amd64/linux-5.4.234-amd64
 else
   # 'KDIR' is the Linux 'kernel headers' package on your host system; this is
   # usually an x86_64, but could be anything, really (f.e. building directly
   # on a Raspberry Pi implies that it's the host)
-  KDIR ?= $(HOME)/documents/02-source/63-linux-5.4.234-amd64/linux-5.4.234-amd64
+  KDIR ?= $(HOME)/documents/08-linux/03-5.4.234-amd64/linux-5.4.234-amd64
 endif
 
 FNAME_C := slab_custom_lkm

@@ -145,4 +145,11 @@ x509.genkey
 *.kdev4
 
 # Clang's compilation database file
-/compile_commands.json
+compile_commands.json
+
+# userapp build files.
+ch15/netlink_simple_intf/userapp_netlink/mynetlink_userapp
+ch15/netlink_simple_intf/userapp_netlink/mynetlink_userapp_dbg
+ch15/netlink_simple_intf/userapp_netlink/mynetlink_userapp_dbg_asan
+ch15/netlink_simple_intf/userapp_netlink/mynetlink_userapp_dbg_ub
+
